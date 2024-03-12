@@ -3,7 +3,6 @@ from math import pi
 import numpy as np
 import modern_robotics as mr
 
-
 def TrajectoryGenerator(
     Tse_initial, Tsc_initial, Tsc_final, Tce_grasp, Tce_standoff, k
 ):
