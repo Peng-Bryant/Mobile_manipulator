@@ -2,19 +2,7 @@ import csv
 from math import pi
 import numpy as np
 import modern_robotics as mr
-def rearrange_back(list):
-    """
-    rearrange the 1x12 vector to a matrix T
-    r11, r12, r13, r21, r22, r23, r31, r32, r33, px, py, pz, gripper state
-    """
-    return np.array(
-        [
-            [list[0], list[1], list[2], list[9]],
-            [list[3], list[4], list[5], list[10]],
-            [list[6], list[7], list[8], list[11]],
-            [0, 0, 0, 1],
-        ]
-    )
+
 
 def TrajectoryGenerator(
     Tse_initial, Tsc_initial, Tsc_final, Tce_grasp, Tce_standoff, k
@@ -93,13 +81,6 @@ def TrajectoryGenerator(
     N1 = int(t1 * k / 0.01)  # Number of reference configurations for segment 1
     gripper_state_1 = 0
     traj_segmt1_list = generate_segment_trajectory(Tse_initial, Tse_standoff_1, t1, N1, 5 ,gripper_state_1)
-
-    print('T_ini',Tse_initial)
-    print('T_start',rearrange_back(traj_segmt1_list[0]))
-
-    print('T_standoff_1',Tse_standoff_1)
-    print('T_end',rearrange_back(traj_segmt1_list[-1]))
-
 
     # Segment 2: Move the gripper down to the grasp position
     """
@@ -195,6 +176,19 @@ def TrajectoryGenerator(
 
     return reference_configs
 
+def rearrange_back(list):
+    """
+    rearrange the 1x12 vector to a matrix T
+    r11, r12, r13, r21, r22, r23, r31, r32, r33, px, py, pz, gripper state
+    """
+    return np.array(
+        [
+            [list[0], list[1], list[2], list[9]],
+            [list[3], list[4], list[5], list[10]],
+            [list[6], list[7], list[8], list[11]],
+            [0, 0, 0, 1],
+        ]
+    )
 
 def rearrange(T, gripper_state):
     """
@@ -250,35 +244,34 @@ def generate_segment_trajectory(Xstart, Xend, Tf, N, method, gripper_state):
 
     return traj
 
-# Example usage
-#{\displaystyle M_{0e}=\left[{\begin{array}{cccc}1&0&0&0.033\\0&1&0&0\\0&0&1&0.6546\\0&0&0&1\end{array}}\right].}
-M_0e = np.array([[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]])
-#{\displaystyle T_{b0}=\left[{\begin{array}{cccc}1&0&0&0.1662\\0&1&0&0\\0&0&1&0.0026\\0&0&0&1\end{array}}\right].}
-Tb_0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
-#{\displaystyle T_{sb}(q)=\left[{\begin{array}{cccc}\cos \phi &-\sin \phi &0&x\\\sin \phi &\cos \phi &0&y\\0&0&1&0.0963\\0&0&0&1\end{array}}\right]}
-x = 0
-y = 0
-phi = 0
-T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
-T0_e = np.dot(Tb_0, M_0e)
-T_se = np.dot(T_sb, T0_e)
-Tse_initial = T_se
+def main():
+    # Define the end-effector frame {e}
+    M_0e = np.array([[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]])
+    Tb_0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
+    x = 0
+    y = 0
+    phi = 0
+    T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
+    T0_e = np.dot(Tb_0, M_0e)
+    T_se = np.dot(T_sb, T0_e)
+    Tse_initial = T_se
 
-Tsc_initial = np.array(
-    [[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0.025], [0, 0, 0, 1]]
-)  # Initial configuration of the cube
-Tsc_final = np.array(
-    [[0, 1, 0, 0], [-1, 0, 0, -1], [0, 0, 1, 0.025], [0, 0, 0, 1]]
-)  # Final configuration of the cube
+    Tsc_initial = np.array(
+        [[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0.025], [0, 0, 0, 1]]
+    )  # Initial configuration of the cube
+    Tsc_final = np.array(
+        [[0, 1, 0, 0], [-1, 0, 0, -1], [0, 0, 1, 0.025], [0, 0, 0, 1]]
+    )  # Final configuration of the cube
 
-s45 = np.sin(np.pi/4)
-Tce_grasp = np.array(
-    [[-s45, 0, s45, 0], [0, 1, 0, 0], [-s45, 0, -s45, 0], [0, 0, 0, 1]]
-)  # Configuration of the end-effector relative to the cube while grasping
-Tce_standoff = np.array(
-    [[-s45, 0, s45, 0], [0, 1, 0, 0], [-s45, 0, -s45, 0.05], [0, 0, 0, 1]]
-)  # Standoff configuration of the end-effector above the cube
-k = 1  # Number of trajectory reference configurations per 0.01 seconds
-trajectory = TrajectoryGenerator(Tse_initial, Tsc_initial, Tsc_final, Tce_grasp, Tce_standoff, k)
-print(len(trajectory))
-# print(trajectory[0:10])
+    s45 = np.sin(np.pi/4)
+    Tce_grasp = np.array(
+        [[-s45, 0, s45, 0], [0, 1, 0, 0], [-s45, 0, -s45, 0], [0, 0, 0, 1]]
+    )  # Configuration of the end-effector relative to the cube while grasping
+    Tce_standoff = np.array(
+        [[-s45, 0, s45, 0], [0, 1, 0, 0], [-s45, 0, -s45, 0.05], [0, 0, 0, 1]]
+    )  # Standoff configuration of the end-effector above the cube
+    k = 1  # Number of trajectory reference configurations per 0.01 seconds
+    trajectory = TrajectoryGenerator(Tse_initial, Tsc_initial, Tsc_final, Tce_grasp, Tce_standoff, k)
+
+if __name__ == "__main__":
+    main()
