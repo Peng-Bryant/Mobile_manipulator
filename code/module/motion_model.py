@@ -12,7 +12,8 @@ Outputs NextState should also produce the following outputs that describe the co
 one timestep (∆t) later: 
 • The next state (configuration) of the robot (13 variables)
 
-Approach The function NextState is based on a simple first-order Euler step: • new arm joint angles = (old arm joint angles) + (joint speeds)∆t 
+Approach The function NextState is based on a simple first-order Euler step: 
+• new arm joint angles = (old arm joint angles) + (joint speeds)∆t 
 • new wheel angles = (old wheel angles) + (wheel speeds)∆t 
 • new chassis configuration is obtained from odometry, as described in Chapter 13.4
 """
@@ -89,7 +90,7 @@ def next_state(
 def main():
     #test the next_state function
     delta_t = 0.01 
-    N = 3000
+    N = 1000
     max_joint_and_wheel_velocity = 5
     initial_state = np.array([0,0,0,0,0,0,0,0,0,0,0,0,0])
 
@@ -119,7 +120,7 @@ def main():
     state_trajectory.append(current_state)
 
     for i in range(N):
-        j = int(i/300) % 9
+        j = int(i/100) % 9
         new_state = next_state(current_state, control_input[j], delta_t, max_joint_and_wheel_velocity)
         state_trajectory.append(new_state)
         # print(new_state)
