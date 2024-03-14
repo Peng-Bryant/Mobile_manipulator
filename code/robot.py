@@ -1,10 +1,9 @@
 import modern_robotics as mr
 import numpy as np
-from module import motion_model, trajectory_generatator
-
+from module import motion_model, trajectory_generatator, feedback_control
 
 class Robot:
-    def __init__(self):
+    def __init__(self, K_p, K_i):
         M_0e = np.array(
             [[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]]
         )
@@ -24,7 +23,7 @@ class Robot:
         )
         T0_e = np.dot(Tb_0, M_0e)
         T_se = np.dot(T_sb, T0_e)
-        Tse_initial = T_se
+        self.Tse_initial = T_se
         s45 = np.sin(np.pi / 4)
 
         self.Tsc_initial = np.array(
@@ -40,6 +39,14 @@ class Robot:
         self.Tce_standoff = np.array(
             [[-s45, 0, s45, 0], [0, 1, 0, 0], [-s45, 0, -s45, 0.05], [0, 0, 0, 1]]
         )  # Standoff configuration of the end-effector above the cube
+
+        self.delta_t = 0.01
+
+        self.K_p = K_p
+        self.K_i = K_i
+
+        # num of trajectory
+        self.k = 1
 
     def next_state(
         self,
@@ -63,4 +70,15 @@ class Robot:
             self.Tce_grasp,
             self.Tce_standoff,
             self.k,
+        )
+
+    def controller(self, X_d, X_d_next, current_state):
+
+        return feedback_control.controller(
+            X_d,
+            X_d_next,
+            current_state,
+            self.delta_t,
+            self.K_p,
+            self.K_i,
         )
