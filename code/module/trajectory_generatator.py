@@ -251,8 +251,8 @@ def main():
     y = 0
     phi = 0
     T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
-    T0_e = np.dot(Tb_0, M_0e)
-    T_se = np.dot(T_sb, T0_e)
+    Tb_e = np.dot(Tb_0, M_0e)
+    T_se = np.dot(T_sb, Tb_e)
     Tse_initial = T_se
 
     Tsc_initial = np.array(
