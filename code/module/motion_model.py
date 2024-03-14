@@ -125,6 +125,7 @@ def main():
         state_trajectory.append(new_state)
         # print(new_state)
         current_state = new_state
+
     
     print(state_trajectory[0:10])
     #writing csv files in Python
