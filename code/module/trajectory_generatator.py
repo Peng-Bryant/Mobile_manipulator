@@ -3,6 +3,37 @@ from math import pi
 import numpy as np
 import modern_robotics as mr
 
+def state2config(curr_state):
+
+    odemetry = curr_state[0:3]
+    arm_joint_angles = curr_state[3:8]
+    M_0e = np.array([[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]])
+
+    # Jacobian matrices
+    Blist = np.array([[0, 0, 1, 0, 0.033, 0],
+                      [0, -1, 0, -0.5076, 0, 0],
+                      [0, -1, 0, -0.3526, 0, 0],
+                      [0, -1, 0, -0.2176, 0, 0],
+                      [0, 0, 1, 0, 0, 0]]).T
+
+    theta_list = arm_joint_angles  # Extract joint angles
+    J_arm = mr.JacobianBody(Blist, theta_list)
+    r = 0.0475
+    l = 0.235
+    w = 0.15
+    T0_e = mr.FKinBody(M_0e, Blist, theta_list)
+
+    Tb_0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
+    x = odemetry[0]
+    y = odemetry[1]
+    phi = odemetry[2]
+    T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
+    T_se = np.dot(T_sb, Tb_0)@T0_e
+
+    return T_se
+
+
+
 def TrajectoryGenerator(
     Tse_initial, Tsc_initial, Tsc_final, Tce_grasp, Tce_standoff, k
 ):
@@ -168,7 +199,7 @@ def TrajectoryGenerator(
     )
 
     # Write the reference configurations to a .csv file
-    with open("reference_trajectory_1.csv", "w", newline="") as csvfile:
+    with open("reference_trajectory_3.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         for config in reference_configs:
             writer.writerow(config)
@@ -243,17 +274,28 @@ def generate_segment_trajectory(Xstart, Xend, Tf, N, method, gripper_state):
 
     return traj
 
+
+
+
+
+
+
 def main():
     # Define the end-effector frame {e}
-    M_0e = np.array([[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]])
-    Tb_0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
-    x = 0
-    y = 0
-    phi = 0
-    T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
-    Tb_e = np.dot(Tb_0, M_0e)
-    T_se = np.dot(T_sb, Tb_e)
-    Tse_initial = T_se
+    # M_0e = np.array([[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]])
+    # Tb_0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
+    # x = 0
+    # y = 0
+    # phi = 0
+    # T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
+    # Tb_e = np.dot(Tb_0, M_0e)
+    # T_se = np.dot(T_sb, Tb_e)
+    # Tse_initial = T_se
+
+    ##  the array of (chassis phi, chassis x, chassis y, J1, J2, J3, J4, J5, W1, W2, W3, W4, gripper state)
+    initial_config = np.array([0.5, -0.2, 0.1, 0, 0, 0.2, -1.6, 0, 0, 0, 0, 0, 0])
+    Tse_initial = state2config(initial_config)
+    print(Tse_initial)
 
     Tsc_initial = np.array(
         [[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0.025], [0, 0, 0, 1]]

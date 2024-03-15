@@ -5,7 +5,7 @@ import modern_robotics as mr
 import matplotlib.pyplot as plt
 
 
-def controller(X_d, X_d_next, curr_state, delta_t, K_p, K_i):
+def controller(X_d, X_d_next, curr_state, delta_t, K_p, K_i, X_err_prev_intergral):
     '''
     Input:
     X_d: desired configuration
@@ -35,16 +35,16 @@ def controller(X_d, X_d_next, curr_state, delta_t, K_p, K_i):
     
     X = state2config(curr_state)
     #
-    V_d = 1./delta_t * mr.MatrixLog6(np.linalg.inv(X_d)@X_d_next)
+    V_d = (1./delta_t) * mr.MatrixLog6(np.linalg.inv(X_d)@X_d_next)
     V_d = mr.se3ToVec(V_d)
     Ad_V_d = mr.Adjoint(np.linalg.inv(X)@X_d)@V_d
 
     X_err = mr.MatrixLog6(np.linalg.inv(X)@X_d)
     X_err = mr.se3ToVec(X_err)
 
-    
+    X_err_intergral = X_err_prev_intergral + X_err*delta_t
     # control
-    V_b = Ad_V_d + K_p@X_err + delta_t * K_i@X_err
+    V_b = Ad_V_d + K_p@X_err + K_i@X_err_intergral
 
     # jacobian
     Blist = np.array([[0, 0, 1, 0, 0.033, 0],
@@ -69,7 +69,92 @@ def controller(X_d, X_d_next, curr_state, delta_t, K_p, K_i):
     print('control input',cmd)
     print('V_b_',V_b)
     print('Je',Je)
-    return V_b, cmd , X_err
+    return V_b, cmd , X_err, X_err_intergral    
+
+def FeedbackControl(Xd,Xdnext,curr_state,timestep,Kp,Ki,Xerr_integral):
+    '''
+    The function calculates the task-space feedforward plus feedback control law.
+
+    Inputs:
+    • The current actual end-effector configuration X (i.e. Tse)
+    • The current reference end-effector configuration Xd (i.e. Tse,d)
+    • The reference end-effector configuration at the next timestep, Xdnext (aka Tse,d,next)
+    • The PI gain matrices Kp and Ki
+    • The timestep ∆t between reference trajectory configurations
+    • The joint angles of the manipulator : thetalist
+    • The integral of error in the end-effector configuration over the time :Xerr_integral
+
+    Outputs:Je, , Xerr, Xerr_integral
+    • The desired body twist Vd
+    • The commanded end-effector twist V expressed in the end-effector frame {e}
+    • The mobile manipulator Jacobian Je(θ): Je
+    • the wheel and joints velocities (u, θdot) :u_theta_dot
+    • The end effector configuration error Xerr
+    • The integral of end effector configuration error Xerr_integral
+
+    '''
+    thetalist = curr_state[3:8]
+    X = state2config(curr_state)
+    # Setting the environment
+    Blist = np.array([  [0,0,1,0,0.033,0],
+                        [0,-1,0,-0.5076,0,0],
+                        [0,-1,0,-0.3526,0,0],
+                        [0,-1,0,-0.2176,0,0],
+                        [0,0,1,0,0,0]   ]).T
+
+    # Listing the dimensions of the chassis
+    r = 0.0475
+    l = 0.47 / 2
+    w = 0.3 / 2
+    F = (r / 4 ) * np.array([ [-1 / (l+w), 1 / (l+w), 1 / (l+w), -1 / (l+w)],
+                                [1,1,1,1],
+                                [-1,1,-1,1]])
+    F6 = np.concatenate((np.zeros((2,4)),F,np.zeros((1,4))),axis=0)
+
+    # The fixed offset from the chassis frame {b} to the base frame of the arm {0}
+    Tb0 = np.array([[1,0,0,0.1662],
+                    [0,1,0,0],
+                    [0,0,1,0.0026],
+                    [0,0,0,1]])
+
+    # The end-effector frame {e} at the zero configuration of the arm     
+    M0e = np.array([[1,0,0,0.033],
+                    [0,1,0,0],
+                    [0,0,1,0.6546],
+                    [0,0,0,1]])
+
+    # Finding transformation matrix of the end effector in the chassis frame at zero configuration
+    T0e = mr.FKinBody(M0e,Blist,thetalist)
+    Tbe = np.matmul(Tb0,T0e)
+    Teb = mr.TransInv(Tbe)
+
+    # Finding the mobile manipulator jacobian Je
+    J_base = np.matmul(mr.Adjoint(Teb),F6)
+    J_arm = mr.JacobianBody(Blist, thetalist)
+    Je = np.concatenate((J_base,J_arm),axis =1)
+
+    psInv = np.linalg.pinv(Je,1e-3) # For calling into the wrapper script
+    # psInv = np.linalg.pinv(Je) # For testing the code
+
+    # Calculating end effector configuration error Xerr and Xerr_integral
+    Xerr_bracket = mr.MatrixLog6(np.matmul(mr.TransInv(X),Xd))
+    Xerr = mr.se3ToVec(Xerr_bracket)
+    Xerr_integral = Xerr_integral + timestep * Xerr
+
+    # Finding the desired body twist Vd
+    Vd_bracket = (1 / timestep) * mr.MatrixLog6(np.matmul(np.linalg.inv(Xd),Xdnext))
+    Vd = mr.se3ToVec(Vd_bracket)
+
+    # Evaluating the commanded end-effector twist V expressed in the end-effector frame {e}
+    Adj = mr.Adjoint(np.matmul(np.linalg.inv(X),Xd))
+    Feedforward = np.matmul(Adj,Vd)
+    V = Feedforward + np.matmul( Kp , Xerr) + np.matmul(Ki, Xerr_integral)
+
+    # Hence the wheel and joint velocities are:
+    u_theta_dot = np.matmul(psInv, V)
+    return V, u_theta_dot, Xerr, Xerr_integral
+    # return V_b, cmd , X_err, X_err_intergral
+
 
 def state2config(curr_state):
     odemetry = curr_state[0:3]
@@ -91,9 +176,9 @@ def state2config(curr_state):
     T0_e = mr.FKinBody(M_0e, Blist, theta_list)
 
     Tb_0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
-    x = odemetry[0]
-    y = odemetry[1]
-    phi = odemetry[2]
+    x = odemetry[1]
+    y = odemetry[2]
+    phi = odemetry[0]
     T_sb = np.array([[np.cos(phi), -np.sin(phi), 0, x], [np.sin(phi), np.cos(phi), 0, y], [0, 0, 1, 0.0963], [0, 0, 0, 1]])
     T_se = np.dot(T_sb, Tb_0)@T0_e
 
@@ -102,7 +187,7 @@ def state2config(curr_state):
 
 
 
-def controller_0(X_d, X_d_next, curr_state, delta_t, K_p, K_i):
+def controller_0(X_d, X_d_next, curr_state, delta_t, K_p, K_i,X_err_prev_intergral):
     '''
     This is a tolerence mition 
     Input:
@@ -142,8 +227,9 @@ def controller_0(X_d, X_d_next, curr_state, delta_t, K_p, K_i):
     X_err = mr.MatrixLog6(np.linalg.inv(X)@X_d)
     X_err = mr.se3ToVec(X_err)
 
-    # Control law
-    V_b = Ad_V_d + K_p@X_err + delta_t * K_i@X_err
+    X_err_intergral = X_err_prev_intergral + X_err*delta_t
+    # control
+    V_b = Ad_V_d + K_p@X_err + K_i@X_err_intergral
 
     # Jacobian matrices
     Blist = np.array([[0, 0, 1, 0, 0.033, 0],
@@ -178,10 +264,9 @@ def controller_0(X_d, X_d_next, curr_state, delta_t, K_p, K_i):
     print('V_b_',V_b)
     print('Je',Je)
 
+    return V_b, cmd , X_err, X_err_intergral  
 
-    return V_b, cmd
-
-def controller_1(X_d, X_d_next,curr_state, delta_t, K_p, K_i):
+def controller_1(X_d, X_d_next,curr_state, delta_t, K_p, K_i,X_err_prev_intergral):
     '''
     This is the selective weighted pseudoinverse method
 
@@ -222,8 +307,9 @@ def controller_1(X_d, X_d_next,curr_state, delta_t, K_p, K_i):
     X_err = mr.MatrixLog6(np.linalg.inv(X) @ X_d)
     X_err = mr.se3ToVec(X_err)
 
-    # Control law
-    V_b = Ad_V_d + K_p @ X_err + delta_t * K_i @ X_err
+    X_err_intergral = X_err_prev_intergral + X_err*delta_t
+    # control
+    V_b = Ad_V_d + K_p@X_err + K_i@X_err_intergral
 
     # Jacobian for the arm and base
     Blist = np.array([[0, 0, 1, 0, 0.033, 0],
@@ -243,7 +329,7 @@ def controller_1(X_d, X_d_next,curr_state, delta_t, K_p, K_i):
     # Selectively Weighted Pseudoinverse Calculation
 
     # Define weighting matrices 
-    W_base = np.diag([1, 1, 1, 1] + [0.1] * 5)  # Higher weight for base movement
+    W_base = np.diag([3]*4 + [1] * 5)  # Higher weight for base movement
     W_arm = np.diag([0.1] * 4 + [1, 1, 1, 1, 1])  # Higher weight for arm movement
     
     # Adjust weighting based on your task preference or dynamic conditions
@@ -253,16 +339,18 @@ def controller_1(X_d, X_d_next,curr_state, delta_t, K_p, K_i):
 
     # Compute the pseudoinverse with a tolerance to mitigate singularity issues
 
-    U, S, V_T = np.linalg.svd(Je_weighted)
-    tolerance = 0.01  # Set a tolerance threshold
-    S_inv = np.array([1/s if s > tolerance else 0 for s in S])
+    # U, S, V_T = np.linalg.svd(Je_weighted)
+    # tolerance = 0.001  # Set a tolerance threshold
+    # S_inv = np.array([1/s if s > tolerance else 0 for s in S])
 
-    # Correctly shape S_inv for non-square matrices
-    S_inv_padded = np.zeros_like(Je_weighted.T)  # Create a zero matrix with the transpose shape of Je
-    min_dim = min(Je_weighted.shape)  # Minimum dimension of Je
-    S_inv_padded[:min_dim, :min_dim] = S_inv  # Place S_inv into the top-left corner
+    # # Correctly shape S_inv for non-square matrices
+    # S_inv_padded = np.zeros_like(Je_weighted.T)  # Create a zero matrix with the transpose shape of Je
 
-    Je_inv_weighted = V_T.T @ S_inv_padded @ U.T
+
+    # min_dim = min(Je_weighted.shape)  # Minimum dimension of Je
+    # S_inv_padded[:min_dim, :min_dim] = S_inv  # Place S_inv into the top-left corner
+    Je_inv_weighted = np.linalg.pinv(Je_weighted,1e-3)
+
 
     cmd = Je_inv_weighted @ V_b
 
@@ -271,7 +359,7 @@ def controller_1(X_d, X_d_next,curr_state, delta_t, K_p, K_i):
     print('Je_weighted',Je_weighted)
     print('Je',Je)
 
-    return V_b, cmd
+    return V_b, cmd , X_err, X_err_intergral  
 
 def main():
     X_d = np.array([[0,0,1,0.5],
