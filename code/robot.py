@@ -34,11 +34,6 @@ class Robot:
         self.initial_config = np.array([0.5, -0.2, 0.1, 0, 0, 0.2, -1.6, 0, 0, 0, 0, 0, 0])
         self.Tse_initial = state2config(self.initial_config)
 
-
-
-
-
-
         self.Tsc_initial = np.array(
             [[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0.025], [0, 0, 0, 1]]
         )  # Initial configuration of the cube
@@ -54,12 +49,11 @@ class Robot:
         )  # Standoff configuration of the end-effector above the cube
 
         self.delta_t = 0.01
-
         self.K_p = K_p
         self.K_i = K_i
         self.X_err_prev_intergral = 0
         self.k = 1
-
+        self.flag = 0
     def next_state(
         self,
         current_state,
@@ -88,7 +82,7 @@ class Robot:
 
     def controller(self, X_d, X_d_next, current_state):
 
-        V_b, cmd , X_err, X_err_intergral =  feedback_control.controller_1(
+        V_b, cmd , X_err, X_err_intergral =  feedback_control.controller_0(
             X_d,
             X_d_next,
             current_state,
@@ -96,6 +90,21 @@ class Robot:
             self.K_p,
             self.K_i,
             self.X_err_prev_intergral
+        )
+        self.X_err_prev_intergral = X_err_intergral
+        return V_b, cmd , X_err
+    
+    def controller_2(self, X_d, X_d_next, current_state):
+
+        V_b, cmd , X_err, X_err_intergral,self.flag =  feedback_control.controller_2(
+            X_d,
+            X_d_next,
+            current_state,
+            self.delta_t,
+            self.K_p,
+            self.K_i,
+            self.X_err_prev_intergral,
+            self.flag
         )
         self.X_err_prev_intergral = X_err_intergral
         return V_b, cmd , X_err

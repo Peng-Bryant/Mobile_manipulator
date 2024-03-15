@@ -107,7 +107,7 @@ def TrajectoryGenerator(
         gripper state : 0
         Tse_initial -> Tse_standoff_1
     """
-    t1 = 3
+    t1 = 6
     N1 = int(t1 * k / 0.01)  # Number of reference configurations for segment 1
     gripper_state_1 = 0
     traj_segmt1_list = generate_segment_trajectory(Tse_initial, Tse_standoff_1, t1, N1, 5 ,gripper_state_1)
@@ -118,7 +118,7 @@ def TrajectoryGenerator(
         gripper state : 0
         Tse_standoff_1 -> Tse_grasp_1
     """
-    t2 = 1
+    t2 = 1.5
     N2 = int(t2 * k / 0.01)  # Number of reference configurations for segment 2
     gripper_state_2 = 0
     traj_segmt2_list = generate_segment_trajectory(Tse_standoff_1, Tse_grasp_1, t2, N2, 5 ,gripper_state_2)
@@ -138,7 +138,7 @@ def TrajectoryGenerator(
         gripper state : 1
         Tse_grasp_1 -> Tse_standoff_1
     """
-    t4 = 1
+    t4 = 1.5
     N4 = int(t4 * k / 0.01)  # Number of reference configurations for segment 4
     gripper_state_4 = 1
     traj_segmt4_list = generate_segment_trajectory(Tse_grasp_1, Tse_standoff_1, t4, N4, 5 ,gripper_state_4)
@@ -149,7 +149,7 @@ def TrajectoryGenerator(
         gripper state : 1
         Tse_standoff_1 -> Tse_standoff_2
     """
-    t5 = 3
+    t5 = 4
     N5 = int(t5 * k / 0.01)  # Number of reference configurations for segment 5
     gripper_state_5 = 1
     traj_segmt5_list = generate_segment_trajectory(Tse_standoff_1, Tse_standoff_2, t5, N5, 5 ,gripper_state_5)
@@ -160,7 +160,7 @@ def TrajectoryGenerator(
         gripper state : 1
         Tse_standoff_2 -> Tse_grasp_2
     """
-    t6 = 1
+    t6 = 1.5
     N6 = int(t6 * k / 0.01)  # Number of reference configurations for segment 6
     gripper_state_6 = 1
     traj_segmt6_list = generate_segment_trajectory(Tse_standoff_2, Tse_grasp_2, t6, N6, 5 ,gripper_state_6)
@@ -181,7 +181,7 @@ def TrajectoryGenerator(
         gripper state : 0
         Tse_grasp_2 -> Tse_standoff_2
     """
-    t8 = 1
+    t8 = 1.5
     N8 = int(t8 * k / 0.01)  # Number of reference configurations for segment 8
     gripper_state_8 = 0
     traj_segmt8_list = generate_segment_trajectory(Tse_grasp_2, Tse_standoff_2, t8, N8, 5 ,gripper_state_8)

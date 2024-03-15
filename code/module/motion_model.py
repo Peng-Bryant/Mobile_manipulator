@@ -58,7 +58,7 @@ def NextState(Current_state,jw_vels,timestep,max_jw_vels,asd):
     vel_arm = np.array(jw_vels[4:-1])    
     vel_wheels = np.array(jw_vels[:4])  
     
-    print(vel_arm)
+    # print(vel_arm)
     # Finding new joints and wheel angles
     new_joint_angles = cur_joint_angles + vel_arm * timestep
     new_wheel_angles = cur_wheel_angles + vel_wheels * timestep
